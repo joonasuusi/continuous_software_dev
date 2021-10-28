@@ -1,0 +1,3 @@
+JSON_AS_ASCII = False
+OUR_TEAM_APP_NAME = "beemapKimura"
+BABEL_DEFAULT_LOCALE = "fi"

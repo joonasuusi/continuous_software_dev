@@ -1,0 +1,97 @@
+image: docker:19.03.10
+
+variables:
+  # When using dind service, we need to instruct docker to talk with
+  # the daemon started inside of the service. The daemon is available
+  # with a network connection instead of the default
+  # /var/run/docker.sock socket.
+  DOCKER_HOST: tcp://docker:2376
+  #
+  # The 'docker' hostname is the alias of the service container as described at
+  # https://docs.gitlab.com/ee/ci/docker/using_docker_images.html#accessing-the-services.
+  # If you're using GitLab Runner 12.7 or earlier with the Kubernetes executor and Kubernetes 1.6 or earlier,
+  # the variable must be set to tcp://localhost:2376 because of how the
+  # Kubernetes executor connects services to the job container
+  # DOCKER_HOST: tcp://localhost:2376
+  #
+  # Specify to Docker where to create the certificates, Docker will
+  # create them automatically on boot, and will create
+  # `/certs/client` that will be shared between the service and job
+  # container, thanks to volume mount from config.toml
+  DOCKER_TLS_CERTDIR: "/certs"
+  # These are usually specified by the entrypoint, however the
+  # Kubernetes executor doesn't run entrypoints
+  # https://gitlab.com/gitlab-org/gitlab-runner/-/issues/4125
+  DOCKER_TLS_VERIFY: 1
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+
+services:
+  - docker:19.03.10-dind
+
+test-job1:
+  stage: test
+  image: python:3
+  script:
+    - export PYTHONPATH=.
+    - export FLASK_APP=web
+    - pip3 install Flask pytest pytest-cov
+    - pip3 install -r requirements.txt
+    - pybabel compile -d translations
+    - echo $GOOGLE_APPLICATION_CREDENTIALS > appcredentials.json
+    - pytest tests --cov --cov-report term --cov-report html
+
+test-job2:
+  stage: test
+  script:
+    - echo "This job tests something, but takes more time than test-job1."
+    - echo "After the echo commands complete, it runs the sleep command for 20 seconds"
+    - echo "which simulates a test that runs 20 seconds longer than test-job1"
+    - sleep 20
+
+test-security:
+  stage: test
+  script:
+    # build and run an application container
+    - echo "Maybe a security test here?"
+
+    
+stages:
+  - test
+  - staging
+  - deploy
+
+staging:
+  stage: staging
+  environment:
+    name: staging
+  image: google/cloud-sdk:alpine
+  script:
+  - echo $SERVICE_ACCOUNT > /tmp/$CI_PIPELINE_ID.json
+  - echo $GOOGLE_APPLICATION_CREDENTIALS > appcredentials.json
+  - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+  - cp $INSTANCE_CONFIG_PRODUCTION instance_config.py
+  - rm /tmp/$CI_PIPELINE_ID.json
+  - gcloud --quiet --project $PROJECT_ID app deploy app-staging.yaml
+    
+  only:
+    - master
+
+deploy:
+  stage: deploy
+  environment:
+    name: production
+  image: google/cloud-sdk:alpine
+  script:
+  - apk update -q
+  - apk add py3-pip
+  - pip install flask-babel --prefer-binary
+  - pybabel compile -d translations
+  - echo $SERVICE_ACCOUNT > /tmp/$CI_PIPELINE_ID.json
+  - echo $GOOGLE_APPLICATION_CREDENTIALS > appcredentials.json
+  - gcloud auth activate-service-account --key-file /tmp/$CI_PIPELINE_ID.json
+  - cp $INSTANCE_CONFIG_PRODUCTION instance_config.py
+  - gcloud --quiet --project $PROJECT_ID app deploy app.yaml
+  - rm /tmp/$CI_PIPELINE_ID.json
+  
+  only:
+    - master
