@@ -1,20 +1,7 @@
-This repository was created to be an example for the course work.
+## Introduction
 
-Python 3.8.5
+This is a sample of a course project for the course continuous software development.
+Idea was to create a map app for a company, where a user can add beehives to the map.
 
-Web applications url:
-https://beemapkimura.nw.r.appspot.com/
+App is not online at the moment. Used tech: google cloud, google app engine, datastore, kubernetes, python 3.8.5, javascript, (leaflet api).
 
-HOW TO REPORT AN ISSUE:
-- Go to gitlab jyu.
-- Select Issues from the left and click it.
-- From the right hand corner, click 'New issue' button (green one).
-- Set title, type, description, write about the issue, assign it if you want to and submit the issue.
-
-THANK YOU!
-
-to run app locally in docker
-
-`$ docker build -t beemaptemplate .`
-
-`$ docker run -p 5000:5000 beemaptemplate:latest`
